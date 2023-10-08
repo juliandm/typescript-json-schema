@@ -6,7 +6,6 @@ import * as ts from "typescript";
 import { JSONSchema7, JSONSchema7TypeName } from "json-schema";
 import { pathEqual } from "path-equal";
 export { Program, CompilerOptions, Symbol } from "typescript";
-
 const vm = require("vm");
 
 const REGEX_FILE_NAME_OR_SPACE = /(\bimport\(".*?"\)|".*?")\.| /g;
@@ -662,11 +661,11 @@ export class JsonSchemaGenerator {
                 definition.maxItems = targetTupleType.fixedLength;
             }
         } else {
-            const propertyTypeString = this.tc.typeToString(
+            const propertyTypeString = generateHashOfType(this.tc.typeToString(
                 propertyType,
                 undefined,
                 ts.TypeFormatFlags.UseFullyQualifiedType
-            );
+            ));
             const flags = propertyType.flags;
             const arrayType = this.tc.getIndexTypeOfType(propertyType, ts.IndexKind.Number);
 
@@ -870,7 +869,7 @@ export class JsonSchemaGenerator {
 
     private getEnumDefinition(clazzType: ts.Type, definition: Definition): Definition {
         const node = clazzType.getSymbol()!.getDeclarations()![0];
-        const fullName = this.tc.typeToString(clazzType, undefined, ts.TypeFormatFlags.UseFullyQualifiedType);
+        const fullName = generateHashOfType(this.tc.typeToString(clazzType, undefined, ts.TypeFormatFlags.UseFullyQualifiedType));
         const members: ts.NodeArray<ts.EnumMember> =
             node.kind === ts.SyntaxKind.EnumDeclaration
                 ? (node as ts.EnumDeclaration).members
@@ -1111,7 +1110,7 @@ export class JsonSchemaGenerator {
                 }).length > 0
             );
         });
-        const fullName = this.tc.typeToString(clazzType, undefined, ts.TypeFormatFlags.UseFullyQualifiedType);
+        const fullName = generateHashOfType(this.tc.typeToString(clazzType, undefined, ts.TypeFormatFlags.UseFullyQualifiedType));
 
         const modifierFlags = ts.getCombinedModifierFlags(node);
 
@@ -1242,13 +1241,13 @@ export class JsonSchemaGenerator {
         }
         return this.makeTypeNameUnique(
             typ,
-            this.tc
+            generateHashOfType(this.tc
                 .typeToString(
                     typ,
                     undefined,
                     ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseFullyQualifiedType
                 )
-                .replace(REGEX_FILE_NAME_OR_SPACE, "")
+                .replace(REGEX_FILE_NAME_OR_SPACE, ""))
         );
     }
 
@@ -1632,6 +1631,10 @@ function generateHashOfNode(node: ts.Node, relativePath: string): string {
     return createHash("md5").update(relativePath).update(node.pos.toString()).digest("hex").substring(0, 8);
 }
 
+function generateHashOfType(type: ts.type): string {
+    return createHash("md5").update(type).digest("hex").substring(0, 16);
+}
+
 export function buildGenerator(
     program: ts.Program,
     args: PartialArgs = {},
@@ -1699,7 +1702,7 @@ export function buildGenerator(
                     const baseTypes = nodeType.getBaseTypes() || [];
 
                     baseTypes.forEach((baseType) => {
-                        var baseName = tc.typeToString(baseType, undefined, ts.TypeFormatFlags.UseFullyQualifiedType);
+                        var baseName = generateHashOfType(tc.typeToString(baseType, undefined, ts.TypeFormatFlags.UseFullyQualifiedType));
                         if (!inheritingTypes[baseName]) {
                             inheritingTypes[baseName] = [];
                         }
